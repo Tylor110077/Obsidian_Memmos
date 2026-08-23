@@ -1,0 +1,4 @@
+node_modules/
+*.log
+.DS_Store
+# 注：main.js / main.css 为构建产物，但随仓库提交以支持手动安装，故不忽略

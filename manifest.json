@@ -1,0 +1,10 @@
+{
+  "id": "memos-graph",
+  "name": "Memmos Graph",
+  "version": "0.0.1",
+  "minAppVersion": "1.5.0",
+  "description": "Memos knowledge-graph canvas + AI chat for your vault",
+  "author": "Tylor",
+  "authorUrl": "https://github.com/Tylor110077/Obsidian_Memmos",
+  "isDesktopOnly": true
+}

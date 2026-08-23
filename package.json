@@ -1,0 +1,29 @@
+{
+  "name": "memmos-graph-obsidian-plugin",
+  "version": "0.0.1",
+  "description": "Memmos Graph: Memos knowledge-graph canvas + AI chat as an Obsidian plugin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tylor110077/Obsidian_Memmos.git"
+  },
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "deploy": "npm run build && node scripts/deploy.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/d3-force": "^3.0.10",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "esbuild": "^0.25.0",
+    "obsidian": "latest",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "d3-force": "^3.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

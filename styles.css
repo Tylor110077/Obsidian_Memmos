@@ -1,0 +1,193 @@
+/* ===== Memos 图谱视图 ===== */
+/* 笔记头部定位按钮：用主题强调色，在原生图标中一眼可见；
+   固定 26×26（18px 图标 + 4px 内边距）与左侧原生 clickable-icon 同尺寸，防止被容器拉伸变长、上下对不齐 */
+.memos-focus-btn {
+  color: var(--interactive-accent) !important;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.memos-focus-btn svg {
+  width: 18px;
+  height: 18px;
+}
+.memos-focus-btn:hover {
+  color: var(--text-normal) !important;
+  background: var(--background-modifier-hover);
+}
+
+.memos-graph-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.memos-graph-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--background-primary);
+}
+
+.memos-graph-canvas {
+  display: block;
+  cursor: grab;
+}
+
+/* 齿轮按钮 */
+.mg-gear {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 6px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.mg-gear:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/* 设置面板 */
+.mg-panel {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 264px;
+  max-height: calc(100% - 16px);
+  overflow-y: auto;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  box-shadow: var(--shadow-s);
+  font-size: 12px;
+  color: var(--text-normal);
+}
+
+.mg-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.mg-close {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.mg-close:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.mg-section {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+.mg-section:first-of-type {
+  border-top: none;
+  margin-top: 4px;
+  padding-top: 0;
+}
+
+.mg-section-title {
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.mg-search {
+  width: 100%;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 12px;
+}
+
+.mg-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.mg-row {
+  margin: 4px 0;
+}
+.mg-row-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.mg-row-value {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.mg-row input[type='range'] {
+  width: 100%;
+}
+
+.mg-group-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.mg-group-row input[type='color'] {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+.mg-group-row input[type='text'] {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 12px;
+}
+
+.mg-add-group {
+  width: 100%;
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.mg-add-group:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
