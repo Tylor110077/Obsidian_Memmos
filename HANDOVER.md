@@ -74,7 +74,7 @@ npm run deploy         # 构建 + 部署到 /Users/tylor/Note/OBISIDIAN/.obsidia
 
 - `main.js` 是**单行文件**：`grep -c` 只会返回行数 1，计数出现次数要用 `grep -oE "xxx" main.js | wc -l`
 - esbuild 会**重命名常量/方法**（如 `TICKS_PER_FRAME` → `iy`），验证行为要抓赋值而非名字
-- esbuild 会把**中文转成 `\uXXXX` 转义**，直接 `grep` 中文会扑空，用 `node -e` 读文件 `includes()` 判断
+- esbuild 会把**中文转成 `\uXXXX` 转义**（十六进制为**大写**，如 `无法创建` → `\u65E0\u6CD5\u521B\u5EFA`），直接 `grep` 原文或按小写搜都会扑空
 
 ## 5. 核心设计决策（改代码前必读）
 
