@@ -75,7 +75,9 @@ const CUT_KEYS: [number, number][] = [
 ];
 const CUT_END_TICK = 280;
 
-/** 自由伸缩阶段入口：从这里开始呼吸式涨落（alphaTarget 渐升再缓退，替代瞬时 alpha 跳变） */
+/** 自由伸缩阶段入口：从这里开始呼吸式涨落（alphaTarget 渐升再缓退，替代瞬时 alpha 跳变）。
+ * ⚠ 与 alphaDecay 强耦合：基线衰减 0.012 下模拟约在第 574 tick 自然停摆（alpha 衰至 0.001 线），
+ * 本值必须留在停摆之前，否则第 5 阶段永远不会触发——调整任一侧都要连另一侧一起核算 */
 const FREE_SETTLE_TICK = 560;
 /** 涨潮持续 tick（约 1.7 秒缓升，随后目标归零缓缓退潮至停摆） */
 const SETTLE_SWELL_TICKS = 100;

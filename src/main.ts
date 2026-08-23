@@ -20,12 +20,17 @@ export default class MemosPlugin extends Plugin {
   private scanFolderListeners = new Set<(folder: string) => void>();
   /** 图谱聚焦请求订阅者（图谱视图挂载时订阅） */
   private focusListeners = new Set<(path: string) => void>();
+  /** 卸载标记：启动时的延迟回调（按钮注入及其重试链）在插件禁用后不得再触碰 DOM */
+  private unloaded = false;
 
   async onload() {
     await this.loadSettings();
 
-    // 默认扫描文件夹：首次使用插件时自动创建（已存在则跳过）
-    await this.ensureScanFolder(DEFAULT_SCAN_FOLDER);
+    // 默认扫描文件夹：仅当当前设置指向默认值时自动创建（首次使用场景，已存在则跳过）；
+    // 已切到全库（空串）或自定义文件夹时不代建，尊重用户对库结构的调整
+    if (this.settings.scanFolder === DEFAULT_SCAN_FOLDER) {
+      await this.ensureScanFolder(DEFAULT_SCAN_FOLDER);
+    }
 
     // 注册图谱视图
     this.registerView(GRAPH_VIEW_TYPE, (leaf) => new MemosGraphView(leaf, this));
@@ -88,6 +93,7 @@ export default class MemosPlugin extends Plugin {
   }
   
   onunload() {
+    this.unloaded = true;
     // 视图由 Obsidian 工作区管理，无需手动清理；但注入的按钮要移除，避免禁用插件后残留
     document.querySelectorAll('.memmos-focus-btn').forEach((el) => el.remove());
   }
@@ -164,6 +170,7 @@ export default class MemosPlugin extends Plugin {
   /** 给所有打开的 md 视图头部（标题附近）注入“在 Memmos 图谱中定位”按钮：
    * 非激活（未 focus）的视图也保留按钮；同一视图只注入一次，点击时动态取该视图当前文件 */
   private injectFocusButtons(retry = 0) {
+    if (this.unloaded) return; // 插件已禁用：启动延迟注入与重试链全部作废
     let needRetry = false;
     for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
       const view = leaf.view;

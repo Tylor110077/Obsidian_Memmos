@@ -20,7 +20,16 @@ async function openNode(plugin: MemosPlugin, n: GNode) {
     if (!name) return;
     let f = app.metadataCache.getFirstLinkpathDest(name, '/');
     if (!(f instanceof TFile)) {
-      f = await app.vault.create(`${name}.md`, '');
+      try {
+        f = await app.vault.create(`${name}.md`, '');
+      } catch {
+        // 创建失败（撞名/非法名等）：回查已有文件兜底，不让异常悬空
+        f = app.metadataCache.getFirstLinkpathDest(name, '/');
+      }
+    }
+    if (!(f instanceof TFile)) {
+      new Notice(`无法创建「${name}.md」`);
+      return;
     }
     app.workspace.getLeaf(false).openFile(f);
   }
@@ -37,6 +46,8 @@ export function GraphApp({ plugin }: { plugin: MemosPlugin }) {
   const pendingFocus = useRef<string | null>(null);
   /** 图数据是否已就绪（首轮构建完成）：未就绪时聚焦请求暂存，就绪后找不到节点则提示 */
   const dataReady = useRef(false);
+  /** 设置持久化防抖计时器 */
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [settings, setSettings] = useState<GraphSettings>(() => ({
     ...DEFAULT_GRAPH_SETTINGS,
     ...plugin.settings.graph,
@@ -102,13 +113,30 @@ export function GraphApp({ plugin }: { plugin: MemosPlugin }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.search, settings.showTags, settings.showAttachments, settings.existingOnly, settings.groups, scanFolder]);
 
-  // 显示/力学设置 → 实时应用 + 持久化
+  // 显示/力学设置 → 引擎实时应用（滑块即时生效）；持久化防抖 500ms：搜索框逐字输入不该每键写一次盘
   useEffect(() => {
     engineRef.current?.setConfig(settings);
     plugin.settings.graph = settings;
-    void plugin.saveSettings();
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      void plugin.saveSettings();
+    }, 500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
+
+  // 卸载时补写未落盘的设置：视图关闭不丢最后一次改动
+  useEffect(
+    () => () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+        void plugin.saveSettings();
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   // vault 元数据就绪后自动重建（防抖）；
   // 正在编辑（仍打开着）的 md 改动不刷新：挂起变更，等该文件关闭后才重建一次（用户要求）

@@ -53,7 +53,7 @@ Memmos Graph 是一个 Obsidian 桌面端插件，为 Vault 提供 **Canvas 自�
 | 物理 | d3-force 3（charge/link/collide/center + 自定义围合力） |
 | UI | React 19（仅设置面板与视图挂载，图谱本体不走 React 渲染） |
 | 构建 | esbuild（`npm run build`），产物单行压缩 |
-| 类型 | `obsidian` 官方 d.ts（注意：当前版本类型里**没有** `getActiveLeaf()`，用 `workspace.activeLeaf`） |
+| 类型 | `obsidian` 官方 d.ts（取当前活动文件统一用 `workspace.getActiveFile()`；`getActiveLeaf()` 已从类型中移除，勿再引入） |
 
 ## 4. 开发、构建与部署
 
@@ -99,7 +99,7 @@ npm run deploy         # 构建 + 部署到 /Users/tylor/Note/OBISIDIAN/.obsidia
 
 ### 5.4 扫描文件夹
 
-- 设置 `scanFolder`（空串 = 全库），默认 `Memmos graph`，插件启动自动创建该文件夹
+- 设置 `scanFolder`（空串 = 全库），默认 `Memmos graph`；仅当当前设置指向该默认值时，插件启动才自动创建该文件夹（全库/自定义模式不代建）
 - 过滤用 `路径前缀 + '/'` 归一化（防 `Memmos graphX` 误匹配）；幽灵节点需 `mdSet.has(src)` 防范围外泄漏
 - 设置变更经监听器广播 → GraphApp 状态驱动重建
 
@@ -112,7 +112,7 @@ npm run deploy         # 构建 + 部署到 /Users/tylor/Note/OBISIDIAN/.obsidia
 
 1. **manifest id 不可改**：改 id 等于新插件，用户配置和安装目录全断
 2. **仅桌面端**（`isDesktopOnly: true`）：依赖 Canvas + 指针事件，未适配移动端
-3. `workspace.activeLeaf` 是废弃属性但类型可用；`getActiveLeaf()` 在当前类型定义里不存在
+3. 侧栏开叶用 `workspace.getRightLeaf(false)`（当前类型库未标记废弃）；新式 `getSideLeaf` 需 Obsidian ≥1.7.2，高于本项目 `minAppVersion` 1.5.0，暂不可用。取活动文件统一 `getActiveFile()`
 4. React 19 + Obsidian 共存：视图卸载走 `onClose` → `root.unmount()`，引擎销毁务必在 React 清理之外兜底
 5. 图谱只扫双链（`[[link]]`），不扫 Markdown 链接（产品决策：对齐 Obsidian 原生图谱）
 
