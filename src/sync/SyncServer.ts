@@ -14,8 +14,9 @@ import { normalizeFolder } from '../settings';
  *   GET  /api/inventory            同步范围内文件清单 [{path, sha256, mtime}]
  *   GET  /api/file?path=...        下载单个 md 文件内容
  *   POST /api/file                 上传 md {path, content}（限范围内，自动建目录）
+ *   POST /api/delete               删除 {path}（手机为唯一真源时的联删：md 与媒体附件）
  *
- * 同步范围 = 插件设置 scanFolder（与图谱扫描一致；空 = 全库）。
+ * 同步范围 = 插件设置 sync.syncFolder（默认 Memmos graph；空 = 全库）。
  * 去重靠内容 sha256：两端各自比对清单只传差异（判定在客户端，服务端只供清单与读写）。
  */
 
@@ -177,6 +178,9 @@ export class SyncServer {
     if (req.method === 'GET' && url.pathname === '/api/binary') {
       return void this.serveBinary(url.searchParams.get('path') || '', send);
     }
+    if (req.method === 'POST' && url.pathname === '/api/delete') {
+      return this.receiveDelete(req, send);
+    }
     send(404, { error: 'unknown route' });
   }
 
@@ -294,11 +298,47 @@ export class SyncServer {
     });
   }
 
+  /** 删除文件（手机为唯一真源时的联删：note.md + 其媒体附件）。
+   *  安全校验与上传一致：同步范围 + 白名单扩展名 + 禁止 .. 逃逸 */
+  private receiveDelete(req: http.IncomingMessage, send: (code: number, body: unknown) => void) {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    req.on('data', (c: Buffer) => {
+      size += c.length;
+      if (size > 64 * 1024) {
+        send(413, { error: 'too large' });
+        req.destroy();
+        return;
+      }
+      chunks.push(c);
+    });
+    req.on('end', () => {
+      void (async () => {
+        try {
+          const { path } = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+          if (typeof path !== 'string' || !path) return send(400, { error: 'bad payload' });
+          const norm = normalizePath(path);
+          if (norm.includes('..')) return send(403, { error: 'bad path' });
+          const root = this.syncRoot();
+          if (root && !norm.startsWith(`${root}/`)) return send(403, { error: 'out of sync scope' });
+          const f = this.plugin.app.vault.getAbstractFileByPath(norm);
+          if (!(f instanceof TFile)) return send(404, { error: 'file not found' });
+          if (!SyncServer.SYNC_EXTS.has(f.extension.toLowerCase())) {
+            return send(403, { error: 'unsupported type' });
+          }
+          await this.plugin.app.vault.adapter.remove(norm);
+          send(200, { ok: true });
+        } catch (e) {
+          send(500, { error: e instanceof Error ? e.message : String(e) });
+        }
+      })();
+    });
+  }
+
   private receiveFile(
     req: http.IncomingMessage,
     send: (code: number, body: unknown) => void,
-  ) {
-    const chunks: Buffer[] = [];
+  ) {    const chunks: Buffer[] = [];
     let size = 0;
     req.on('data', (c: Buffer) => {
       size += c.length;
