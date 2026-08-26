@@ -327,12 +327,33 @@ export class SyncServer {
             return send(403, { error: 'unsupported type' });
           }
           await this.plugin.app.vault.adapter.remove(norm);
+          // 文件删完后自底向上清理空父目录（用户要求：对应的文件夹也要删除），不越过同步根
+          await this.removeEmptyParents(norm);
           send(200, { ok: true });
         } catch (e) {
           send(500, { error: e instanceof Error ? e.message : String(e) });
         }
       })();
     });
+  }
+
+  /** 自底向上删除空父目录（origin content/{标题}/、media/、AI summary/{标题}/ 等）；
+   *  含隐藏文件（如 .DS_Store）的目录对 Obsidian 而言 children 为空但实际非空——rmdir 会失败，静默跳过 */
+  private async removeEmptyParents(filePath: string) {
+    const root = this.syncRoot();
+    let dir = filePath.substring(0, filePath.lastIndexOf('/'));
+    while (dir && dir !== root) {
+      if (root && !dir.startsWith(`${root}/`)) break; // 不越出同步根
+      const abs = this.plugin.app.vault.getAbstractFileByPath(dir);
+      if (!(abs instanceof TFolder)) break;
+      if (abs.children.length > 0) break;
+      try {
+        await this.plugin.app.vault.adapter.remove(dir);
+      } catch {
+        break; // 目录实际非空（隐藏文件等）：交给用户，不强制
+      }
+      dir = dir.substring(0, dir.lastIndexOf('/'));
+    }
   }
 
   private receiveFile(
