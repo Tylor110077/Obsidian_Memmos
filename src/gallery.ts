@@ -34,6 +34,8 @@ function isImageParagraph(p: HTMLParagraphElement): boolean {
 }
 
 function buildGallery(group: HTMLParagraphElement[]): void {
+  // 移动原图元素而非克隆：Obsidian 1.13 原生「点击放大/悬停放大按钮」绑定在原图节点上，
+  // 克隆会把这些行为弄丢（用户反馈：点图不跳转、放大按钮失效）
   const imgs = group.map((p) => p.querySelector('img') as HTMLImageElement);
 
   const wrap = document.createElement('div');
@@ -41,7 +43,7 @@ function buildGallery(group: HTMLParagraphElement[]): void {
 
   const stage = document.createElement('div');
   stage.className = 'memmos-gallery-stage';
-  stage.setAttribute('title', '点击左右两侧切换上一张/下一张');
+  stage.setAttribute('title', '点击左侧上一张 · 其他区域下一张');
 
   const counter = document.createElement('div');
   counter.className = 'memmos-gallery-counter';
@@ -58,11 +60,7 @@ function buildGallery(group: HTMLParagraphElement[]): void {
   let idx = 0;
   const show = () => {
     stage.textContent = '';
-    const img = imgs[idx].cloneNode(true) as HTMLImageElement;
-    img.removeAttribute('style');
-    img.removeAttribute('width');
-    img.removeAttribute('height');
-    stage.appendChild(img);
+    stage.appendChild(imgs[idx]);
     counter.textContent = `${idx + 1} / ${imgs.length}`;
     prev.disabled = idx === 0;
     next.disabled = idx === imgs.length - 1;
@@ -81,12 +79,16 @@ function buildGallery(group: HTMLParagraphElement[]): void {
     e.stopPropagation();
     go(1);
   });
-  // 点击舞台左右各 30% 区域切图（手机端左右点按同感）；中间区域不动，避免误触
+  // 点击切换：左 30% 上一张，其余区域下一张；stopPropagation 避免 Obsidian 原生点击放大抢先；
+  // 按钮（Obsidian 原生放大按钮/本组件的‹›）不拦截，交给各自处理
   stage.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t?.closest('button')) return;
     const rect = stage.getBoundingClientRect();
     const x = e.clientX - rect.left;
+    e.stopPropagation();
     if (x < rect.width * 0.3) go(-1);
-    else if (x > rect.width * 0.7) go(1);
+    else go(1);
   });
 
   wrap.append(stage, counter, prev, next);
