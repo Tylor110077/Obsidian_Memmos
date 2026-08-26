@@ -127,3 +127,16 @@ npm run deploy         # 构建 + 部署到 /Users/tylor/Note/OBISIDIAN/.obsidia
 
 - 作者：Tylor（GitHub: [Tylor110077](https://github.com/Tylor110077)）
 - 仓库：https://github.com/Tylor110077/Obsidian_Memmos
+
+
+## 9. 设备同步服务（2026-08-25 新增）
+
+Android Memmos 配套软件（`/Users/tylor/Code/Android-Memmos/HANDOVER.md` 为安卓端权威交接文档）
+与插件通过局域网 HTTP 双向同步，新增 `src/sync/SyncServer.ts`：
+- TCP 28422：`/pair`（配对码换 token）、`/api/inventory`（全类型文件清单+指纹）、
+  `/api/file`（md 文本/二进制 base64）、`/api/binary`（媒体读写，200MB 上限）
+- UDP 28423：`MEMMOS_DISCOVER_V1` 探测回报 {name,port,code}（手机端设备发现）
+- 设置页「设备同步」区块：开关 / 本机 IP / 配对码 / 端口 / **同步文件夹**（默认 `Memmos graph`，
+  与图谱 scanFolder 独立——用户要求只同步该文件夹）
+- 构建：esbuild external 增 `dgram`、`os`；Obsidian 端 API 差异见 `src/sync/SyncServer.ts` 顶部注释
+- 待办：Obsidian 重载后再跑端到端验证（binary 端点/发现服务实测）

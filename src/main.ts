@@ -1,4 +1,4 @@
-import { Plugin, TFile, MarkdownView, setIcon, type WorkspaceLeaf } from 'obsidian';
+import { Plugin, TFile, MarkdownView, Notice, setIcon, type WorkspaceLeaf } from 'obsidian';
 import { GRAPH_VIEW_TYPE, MemosGraphView } from './view';
 import {
   MemosSettingTab,
@@ -8,11 +8,15 @@ import {
   type MemosSettings,
 } from './settings';
 import { DEFAULT_GRAPH_SETTINGS } from './graph/config';
+import { SyncServer } from './sync/SyncServer';
+import { wrapImageGroups } from './gallery';
 
 /**
  * Memmos Graph 插件入口
  * - 左侧边栏图标 + 命令面板打开图谱视图
  * - 设置页管理 Qwen API Key（后续 AI 功能使用）
+ * - 设备同步：局域网 HTTP 服务，与 Android Memmos 配对后双向同步（src/sync/）
+ * - 图片画廊：同步文件夹内连续多图 → 点击上一张/下一张（src/gallery/）
  */
 export default class MemosPlugin extends Plugin {
   settings: MemosSettings = { ...DEFAULT_SETTINGS };
@@ -22,15 +26,26 @@ export default class MemosPlugin extends Plugin {
   private focusListeners = new Set<(path: string) => void>();
   /** 卸载标记：启动时的延迟回调（按钮注入及其重试链）在插件禁用后不得再触碰 DOM */
   private unloaded = false;
+  /** 设备同步服务（Android Memmos ↔ 本插件） */
+  sync!: SyncServer;
 
   async onload() {
     await this.loadSettings();
+
+    // 旧配置无 sync 段（或字段缺失）时补默认值，避免 undefined 崩
+    if (!this.settings.sync) {
+      this.settings.sync = { ...DEFAULT_SETTINGS.sync };
+    }
 
     // 默认扫描文件夹：仅当当前设置指向默认值时自动创建（首次使用场景，已存在则跳过）；
     // 已切到全库（空串）或自定义文件夹时不代建，尊重用户对库结构的调整
     if (this.settings.scanFolder === DEFAULT_SCAN_FOLDER) {
       await this.ensureScanFolder(DEFAULT_SCAN_FOLDER);
     }
+
+    this.sync = new SyncServer(this);
+    // 同步服务开关与设置一致；失败（如端口占用）提示不阻塞插件
+    void this.applySyncService();
 
     // 注册图谱视图
     this.registerView(GRAPH_VIEW_TYPE, (leaf) => new MemosGraphView(leaf, this));
@@ -49,6 +64,26 @@ export default class MemosPlugin extends Plugin {
 
     // 设置页
     this.addSettingTab(new MemosSettingTab(this.app, this));
+
+    // 设备同步命令：切换服务 + 显示配对信息
+    this.addCommand({
+      id: 'toggle-sync',
+      name: '开启/关闭设备同步服务',
+      callback: async () => {
+        this.settings.sync.syncEnabled = !this.settings.sync.syncEnabled;
+        await this.saveSettings();
+        await this.applySyncService();
+        if (this.settings.sync.syncEnabled) {
+          const ips = SyncServer.localIPs();
+          new Notice(
+            `同步已开启 ${ips[0] ?? '本机'}:${this.sync.port}\n配对码 ${this.sync.ensurePairCode()}`,
+            8000,
+          );
+        } else {
+          new Notice('同步已关闭');
+        }
+      },
+    });
 
     // 在图谱中定位：文件右键菜单 + 编辑器右键菜单 + 命令面板（可绑快捷键）
     this.registerEvent(
@@ -90,12 +125,40 @@ export default class MemosPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on('layout-change', () => this.injectFocusButtons()));
     // 插件启动时已有的笔记页也需注入（延迟等头部渲染完成）
     window.setTimeout(() => this.injectFocusButtons(), 300);
+
+    // 图片画廊（用户要求：同步文件夹内连续多图 → 点击左右两侧/箭头换上一张下一张）
+    this.registerMarkdownPostProcessor((el, ctx) => {
+      if (!this.isInsideSyncFolder(ctx.sourcePath)) return;
+      wrapImageGroups(el);
+    });
   }
   
   onunload() {
     this.unloaded = true;
     // 视图由 Obsidian 工作区管理，无需手动清理；但注入的按钮要移除，避免禁用插件后残留
     document.querySelectorAll('.memmos-focus-btn').forEach((el) => el.remove());
+    // 同步服务随插件停用
+    this.sync?.stop();
+  }
+
+  /** 按设置启停同步服务（端口占用等失败给 Notice，不抛出） */
+  async applySyncService() {
+    if (this.settings.sync.syncEnabled) {
+      try {
+        await this.sync.start();
+      } catch (e) {
+        new Notice(`同步服务启动失败：${e instanceof Error ? e.message : String(e)}`);
+      }
+    } else {
+      this.sync.stop();
+    }
+  }
+
+  /** 路径是否在同步文件夹内（图片画廊只在此文件夹生效，用户要求） */
+  private isInsideSyncFolder(path: string): boolean {
+    const root = normalizeFolder(this.settings.sync?.syncFolder ?? '');
+    // 同步文件夹恒为具体路径（设置页归一化回退 'Memmos graph'），空串 = 全库则不套用
+    return root !== '' && (path === root || path.startsWith(root + '/'));
   }
 
   /** 打开（或聚焦已打开的）图谱视图 */
