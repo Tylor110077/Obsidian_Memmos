@@ -3,6 +3,8 @@ import * as dgram from 'dgram';
 import * as crypto from 'crypto';
 import * as os from 'os';
 import { Notice, TFile, TFolder, normalizePath } from 'obsidian';
+import { rmSync } from 'fs';
+import { join } from 'path';
 import type MemosPlugin from '../main';
 import { normalizeFolder } from '../settings';
 
@@ -357,7 +359,15 @@ export class SyncServer {
       try {
         await this.plugin.app.vault.adapter.remove(dir);
       } catch {
-        break; // 目录实际非空（隐藏文件等）：交给用户，不强制
+        // Obsidian 看着空但实际含点隐藏文件（如 .space/context.mdb）：desktop 下 fs 递归兜底。
+        // 只在「Obsidian 视角为空」时走这里，可见内容永远不会被强删
+        try {
+          const base = (this.plugin.app.vault.adapter as { getBasePath?: () => string }).getBasePath?.();
+          if (!base) break;
+          rmSync(join(base, dir), { recursive: true, force: true });
+        } catch {
+          break;
+        }
       }
       dir = dir.substring(0, dir.lastIndexOf('/'));
     }
