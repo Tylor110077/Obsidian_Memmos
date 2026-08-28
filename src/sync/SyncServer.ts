@@ -337,13 +337,20 @@ export class SyncServer {
     });
   }
 
-  /** 自底向上删除空父目录（origin content/{标题}/、media/、AI summary/{标题}/ 等）；
-   *  含隐藏文件（如 .DS_Store）的目录对 Obsidian 而言 children 为空但实际非空——rmdir 会失败，静默跳过 */
+  /** 结构目录名（用户要求：同步删除只清理帖子级文件夹，外层结构目录保留） */
+  private static readonly PRESERVED_SEGMENTS = new Set(['origin content', 'AI summary', 'media']);
+
+  /** 自底向上删除空父目录，只删帖子级文件夹（origin content/{标题}/、AI summary/{标题}/）：
+   *  碰到结构目录（origin content / AI summary / media）或源大文件夹（同步根下一层，如 xiaohongshu）即停；
+   *  含隐藏文件（如 .DS_Store）的目录 rmdir 会失败，静默跳过 */
   private async removeEmptyParents(filePath: string) {
     const root = this.syncRoot();
     let dir = filePath.substring(0, filePath.lastIndexOf('/'));
     while (dir && dir !== root) {
-      if (root && !dir.startsWith(`${root}/`)) break; // 不越出同步根
+      if (root && !dir.startsWith(`${root}/`)) break;
+      const seg = dir.substring(dir.lastIndexOf('/') + 1);
+      if (SyncServer.PRESERVED_SEGMENTS.has(seg)) break; // 结构目录本身保留
+      if (dir.substring(0, dir.lastIndexOf('/')) === root) break; // 源大文件夹保留
       const abs = this.plugin.app.vault.getAbstractFileByPath(dir);
       if (!(abs instanceof TFolder)) break;
       if (abs.children.length > 0) break;
